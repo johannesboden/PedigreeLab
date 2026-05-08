@@ -339,14 +339,21 @@ function selectedPartnerFor(person, slot = 1) {
 async function applyAutoLayoutAfterEdit(message) {
   normalizeStructuredSpacing();
   try {
-    const response = await fetch("/api/layout");
+    const response = await fetch("/api/layout", {
+      method: "POST",
+      headers: { "content-type": "application/json" },
+      body: JSON.stringify(pedigree),
+    });
     pedigree = await response.json();
+    dirty = false;
+    const time = new Date().toLocaleTimeString("de-DE", { hour: "2-digit", minute: "2-digit" });
+    setAutosaveState("saved", `Gesichert ${time}`);
   } catch {
     normalizeStructuredSpacing();
+    markDirty(message);
   }
   render();
   setStatus(message);
-  markDirty(message);
 }
 
 function normalizeStructuredSpacing() {

@@ -53,6 +53,13 @@ class PedigreeApp:
             self.pedigree.source_path = str(self.path)
             save_ped(self.pedigree, self.path)
 
+    def layout_and_save_from_json(self, payload: bytes | None = None) -> None:
+        if payload:
+            self.replace_from_json(payload)
+        if self.mode != "legacy_grid":
+            apply_generation_layout(self.pedigree)
+            save_ped(self.pedigree, self.path)
+
 
 def make_handler(app: PedigreeApp) -> type[BaseHTTPRequestHandler]:
     class Handler(BaseHTTPRequestHandler):
@@ -67,8 +74,7 @@ def make_handler(app: PedigreeApp) -> type[BaseHTTPRequestHandler]:
                 self._send_bytes(app.as_json(), "application/json")
                 return
             if parsed.path == "/api/layout":
-                if app.mode != "legacy_grid":
-                    apply_generation_layout(app.pedigree)
+                app.layout_and_save_from_json()
                 self._send_bytes(app.as_json(), "application/json")
                 return
 
@@ -81,13 +87,16 @@ def make_handler(app: PedigreeApp) -> type[BaseHTTPRequestHandler]:
 
         def do_POST(self) -> None:
             parsed = urlparse(self.path)
-            if parsed.path != "/api/pedigree":
+            if parsed.path not in {"/api/pedigree", "/api/layout"}:
                 self.send_error(HTTPStatus.NOT_FOUND)
                 return
             length = int(self.headers.get("content-length", "0"))
             payload = self.rfile.read(length)
             try:
-                app.replace_from_json(payload)
+                if parsed.path == "/api/layout":
+                    app.layout_and_save_from_json(payload)
+                else:
+                    app.replace_from_json(payload)
             except Exception as exc:
                 self._send_bytes(
                     json.dumps({"error": str(exc)}).encode("utf-8"),
