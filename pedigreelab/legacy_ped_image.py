@@ -205,6 +205,14 @@ def _text_svg(cell: str, x: int, y: int, cell_w: int, cell_h: int) -> list[str]:
     cx = x + cell_w / 2
     cy = y + cell_h / 2
     out = []
+    if cell.startswith("Tra:"):
+        anchor = "middle" if "zentriert" in cell else "start"
+        text_x = cx if anchor == "middle" else x + 2
+        for offset, text in enumerate(texts):
+            out.append(
+                f'<text x="{text_x}" y="{cy - 4 + offset * 12}" text-anchor="{anchor}">{html.escape(text)}</text>'
+            )
+        return out
     for offset, text in enumerate(texts):
         out.append(f'<text x="{cx + 12}" y="{cy - 4 + offset * 12}">{html.escape(text)}</text>')
     if "rmc: pfeil" in cell:
@@ -241,6 +249,11 @@ def _draw_text(draw, font, cell: str, x: int, y: int, cell_w: int, cell_h: int) 
     texts = _extract_text(cell)
     cx = x + cell_w / 2
     cy = y + cell_h / 2
+    if cell.startswith("Tra:"):
+        for offset, text in enumerate(texts):
+            text_x = cx if "zentriert" in cell else x + 2
+            draw.text((text_x, cy - 10 + offset * 12), text, fill=(17, 17, 17), font=font, anchor="ma" if "zentriert" in cell else None)
+        return
     for offset, text in enumerate(texts):
         draw.text((cx + 12, cy - 10 + offset * 12), text, fill=(17, 17, 17), font=font)
     if "rmc: pfeil" in cell:
@@ -284,6 +297,11 @@ def _symbol_kind(cell: str) -> str | None:
 
 
 def _extract_text(cell: str) -> list[str]:
+    text_match = re.search(r"rt:\s*(.*?)~", cell)
+    if text_match:
+        raw_text = text_match.group(1).strip()
+        text = raw_text.replace("\\\\\\", "\n").replace("\\\\", "\n").replace("\\", "\n")
+        return [part.strip() for part in text.splitlines() if part.strip()]
     match = re.search(r"rw:\s*(.*?)~rn:", cell)
     if not match:
         return []

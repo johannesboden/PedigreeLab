@@ -683,6 +683,7 @@ function legacyCellForTool(tool, existing) {
   const notePart = note ? `rk: 0~rmc: ~rw: ${note}\\\\~` : "";
   const cells = {
     empty: "E",
+    text: `Tra: links~rs: schriftNormal~rt: ${note || "Text"}\\~`,
     male: `Mrf: {-1\\16777235\\}~${notePart}rn: mannc~`,
     female: `Wrf: {-1\\16777235\\}~${notePart}rn: frauc~`,
     diamond: `Srf: {-1\\16777235\\}~${notePart}rn: rautec~`,
@@ -701,8 +702,11 @@ function legacyCellForTool(tool, existing) {
 }
 
 function setLegacyNote(cell, note) {
+  if (String(cell || "").startsWith("Tra:") || !legacySymbolType(cell)) {
+    const cleanText = note.replaceAll("\n", "\\\\");
+    return cleanText ? `Tra: links~rs: schriftNormal~rt: ${cleanText}\\~` : "E";
+  }
   const symbol = legacySymbolType(cell);
-  if (!symbol) return cell;
   const tool = symbol === "Mrf" ? "male" : symbol === "Wrf" ? "female" : cell.includes("abortc") ? "abort" : "diamond";
   const clean = note.replaceAll("\n", "\\\\");
   const notePart = clean ? `rk: 0~rmc: ~rw: ${clean}\\\\~` : "";
@@ -723,6 +727,10 @@ function legacySymbolType(cell) {
 }
 
 function extractLegacyNote(cell) {
+  const textMatch = String(cell || "").match(/rt:\s*(.*?)~/);
+  if (textMatch) {
+    return textMatch[1].split(/\\\\|\\/).map((part) => part.trim()).filter(Boolean);
+  }
   const match = String(cell || "").match(/rw:\s*(.*?)~rn:/);
   if (!match) return [];
   return match[1].split(/\\\\|\\/).map((part) => part.trim()).filter(Boolean);
@@ -773,6 +781,18 @@ function drawLegacyNote(parent, cell, x, y, cellW, cellH) {
   const notes = extractLegacyNote(cell);
   const cx = x + cellW / 2;
   const cy = y + cellH / 2;
+  if (String(cell || "").startsWith("Tra:")) {
+    notes.forEach((note, offset) => {
+      const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
+      text.setAttribute("x", cell.includes("zentriert") ? cx : x + 2);
+      text.setAttribute("y", cy - 4 + offset * 12);
+      text.setAttribute("class", "legacy-note");
+      text.setAttribute("text-anchor", cell.includes("zentriert") ? "middle" : "start");
+      text.textContent = note;
+      parent.append(text);
+    });
+    return;
+  }
   notes.forEach((note, offset) => {
     const text = document.createElementNS("http://www.w3.org/2000/svg", "text");
     text.setAttribute("x", cx + 12);

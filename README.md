@@ -64,3 +64,6 @@ python3 -m pedigreelab.server --file local_data/beispiel_legacy.ped --port 8766
 
 In grid mode, users can click cells, choose symbols or line tools, add notes,
 and rely on the same auto-save mechanism.
+
+See `docs/ped6_learnings.md` for implementation notes derived from the PED6
+reference package.
