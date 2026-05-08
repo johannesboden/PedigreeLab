@@ -14,6 +14,8 @@ const legacyTool = document.getElementById("legacyTool");
 const legacyNote = document.getElementById("legacyNote");
 const legacyCellInfo = document.getElementById("legacyCellInfo");
 const applyLegacyNoteBtn = document.getElementById("applyLegacyNoteBtn");
+const relativeType = document.getElementById("relativeType");
+const addRelativeBtn = document.getElementById("addRelativeBtn");
 
 let pedigree = { people: [], comments: [], errors: [] };
 let selectedId = null;
@@ -34,6 +36,7 @@ const fields = {
   y: document.getElementById("posY"),
 };
 
+document.getElementById("newPedigreeBtn").addEventListener("click", newPedigree);
 document.getElementById("addPersonBtn").addEventListener("click", addPerson);
 document.getElementById("addParentsBtn").addEventListener("click", addParents);
 document.getElementById("addPartnerBtn").addEventListener("click", addPartner);
@@ -46,6 +49,7 @@ document.getElementById("saveBtn").addEventListener("click", () => savePedigree(
 form.addEventListener("submit", applyForm);
 form.addEventListener("change", applyFormChange);
 applyLegacyNoteBtn.addEventListener("click", applyLegacyNote);
+addRelativeBtn.addEventListener("click", addSelectedRelative);
 window.addEventListener("beforeunload", (event) => {
   if (!dirty) return;
   event.preventDefault();
@@ -98,6 +102,27 @@ async function autoLayout() {
   render();
   setStatus("Layout aktualisiert");
   markDirty("Layout geändert");
+}
+
+function newPedigree() {
+  if (!window.confirm("Aktuellen Stammbaum verwerfen und neu starten?")) return;
+  pedigree = {
+    mode: "pedigree",
+    people: [
+      makePerson("P001", "FAM1", "1", 260, 120),
+      makePerson("P002", "FAM1", "2", 430, 120),
+      makePerson("P003", "FAM1", "1", 345, 300),
+    ],
+    comments: [],
+    partner_links: [["P001", "P002"]],
+    source_path: pedigree.source_path,
+    errors: [],
+  };
+  pedigree.people[2].paternal_id = "P001";
+  pedigree.people[2].maternal_id = "P002";
+  selectedId = "P001";
+  render();
+  markDirty("Neuer Stammbaum");
 }
 
 function addPerson() {
@@ -161,6 +186,53 @@ function addPartner() {
   ensurePartnerLink(person.individual_id, partnerId);
   selectedId = partnerId;
   applyAutoLayoutAfterEdit("Partner angelegt");
+}
+
+function addSelectedRelative() {
+  if (isLegacyMode()) return;
+  const type = relativeType.value;
+  if (type === "partner") return addPartner();
+  if (type === "son") return addChild("1");
+  if (type === "daughter") return addChild("2");
+  if (type === "father" || type === "mother") return addOneParent(type);
+  if (type === "brother" || type === "sister") return addSibling(type === "brother" ? "1" : "2");
+}
+
+function addOneParent(type) {
+  const child = selectedPerson();
+  if (!child) {
+    setStatus("Erst eine Person auswählen");
+    return;
+  }
+  const parentId = nextId(type === "father" ? "V" : "M");
+  const sex = type === "father" ? "1" : "2";
+  const parent = makePerson(parentId, child.family_id, sex, child.x || 120, (child.y || 120) - 155);
+  pedigree.people.push(parent);
+  if (type === "father") child.paternal_id = parentId;
+  else child.maternal_id = parentId;
+  if (child.paternal_id !== "0" && child.maternal_id !== "0") {
+    ensurePartnerLink(child.paternal_id, child.maternal_id);
+  }
+  selectedId = parentId;
+  applyAutoLayoutAfterEdit(type === "father" ? "Vater angelegt" : "Mutter angelegt");
+}
+
+function addSibling(sex) {
+  const person = selectedPerson();
+  if (!person) {
+    setStatus("Erst eine Person auswählen");
+    return;
+  }
+  if (person.paternal_id === "0" && person.maternal_id === "0") {
+    addParents();
+  }
+  const siblingId = nextId(sex === "1" ? "B" : "S");
+  const sibling = makePerson(siblingId, person.family_id, sex, (person.x || 120) + 170, person.y || 120);
+  sibling.paternal_id = person.paternal_id;
+  sibling.maternal_id = person.maternal_id;
+  pedigree.people.push(sibling);
+  selectedId = siblingId;
+  applyAutoLayoutAfterEdit(sex === "1" ? "Bruder angelegt" : "Schwester angelegt");
 }
 
 function addChild(sex = "0") {
@@ -445,8 +517,10 @@ function renderLegacy() {
 }
 
 function drawPartnerLine(left, right) {
-  const y = Math.min(left.y, right.y);
-  appendPath(`M ${left.x} ${y} L ${right.x} ${y}`);
+  const first = (left.x || 0) <= (right.x || 0) ? left : right;
+  const second = first === left ? right : left;
+  const y = ((first.y || 0) + (second.y || 0)) / 2;
+  appendPath(`M ${nodeRight(first)} ${y} L ${nodeLeft(second)} ${y}`);
 }
 
 function partnerKey(leftId, rightId) {
@@ -454,15 +528,35 @@ function partnerKey(leftId, rightId) {
 }
 
 function drawChildLine(parentA, parentB, child) {
-  const midX = (parentA.x + parentB.x) / 2;
-  const parentY = Math.min(parentA.y, parentB.y);
+  const midX = ((parentA.x || 0) + (parentB.x || 0)) / 2;
+  const parentY = ((parentA.y || 0) + (parentB.y || 0)) / 2;
   const junctionY = parentY + 55;
-  appendPath(`M ${midX} ${parentY} L ${midX} ${junctionY} L ${child.x} ${junctionY} L ${child.x} ${child.y - 28}`);
+  appendPath(`M ${midX} ${parentY} L ${midX} ${junctionY} L ${child.x} ${junctionY} L ${child.x} ${nodeTop(child)}`);
 }
 
 function drawSingleParentLine(parent, child) {
-  const midY = (parent.y + child.y) / 2;
-  appendPath(`M ${parent.x} ${parent.y + 28} L ${parent.x} ${midY} L ${child.x} ${midY} L ${child.x} ${child.y - 28}`);
+  const midY = (nodeBottom(parent) + nodeTop(child)) / 2;
+  appendPath(`M ${parent.x} ${nodeBottom(parent)} L ${parent.x} ${midY} L ${child.x} ${midY} L ${child.x} ${nodeTop(child)}`);
+}
+
+function nodeRadius(person) {
+  return person.sex === "0" ? 28 : 24;
+}
+
+function nodeLeft(person) {
+  return (person.x || 0) - nodeRadius(person);
+}
+
+function nodeRight(person) {
+  return (person.x || 0) + nodeRadius(person);
+}
+
+function nodeTop(person) {
+  return (person.y || 0) - nodeRadius(person);
+}
+
+function nodeBottom(person) {
+  return (person.y || 0) + nodeRadius(person);
 }
 
 function appendPath(d) {

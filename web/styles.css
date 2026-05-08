@@ -193,6 +193,13 @@ textarea {
   gap: 10px;
 }
 
+.relative-row {
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  gap: 10px;
+  align-items: end;
+}
+
 .status {
   min-height: 24px;
   margin-top: 12px;
@@ -216,8 +223,8 @@ textarea {
 }
 
 .person-node.selected .symbol {
-  stroke: var(--accent);
-  stroke-width: 4;
+  stroke: #111111;
+  stroke-width: 6;
 }
 
 .symbol {

@@ -15,6 +15,7 @@
           <span id="autosaveState" class="autosave-state">Geladen</span>
         </div>
         <div class="actions">
+          <button id="newPedigreeBtn" type="button">Neu</button>
           <button id="addPersonBtn" type="button">Person</button>
           <button id="addParentsBtn" type="button">Eltern</button>
           <button id="addPartnerBtn" type="button">Partner</button>
@@ -68,6 +69,21 @@
               <input id="maternalId" name="maternal_id" autocomplete="off" list="personIds" />
             </label>
             <datalist id="personIds"></datalist>
+            <div class="relative-row">
+              <label>
+                Verwandter
+                <select id="relativeType">
+                  <option value="partner">Partner</option>
+                  <option value="son">Sohn</option>
+                  <option value="daughter">Tochter</option>
+                  <option value="father">Vater</option>
+                  <option value="mother">Mutter</option>
+                  <option value="brother">Bruder</option>
+                  <option value="sister">Schwester</option>
+                </select>
+              </label>
+              <button id="addRelativeBtn" type="button" class="primary">Anlegen</button>
+            </div>
             <div class="coord-row">
               <label>
                 X

@@ -31,9 +31,11 @@ Open `http://127.0.0.1:8765`.
 
 - Load and save `.ped` files.
 - Draw parents, partners, and children.
+- Start a new default pedigree with consultand, partner, and child.
 - Add a person.
 - Add parents for the selected person.
 - Add partner, son, or daughter for the selected person.
+- Add a relative from the selected person's detail panel.
 - Keep explicit partner links as `.ped` comments for couples without children.
 - Remove the selected person and clear broken parent links.
 - Edit ID, sex, phenotype, parents, and canvas position.
