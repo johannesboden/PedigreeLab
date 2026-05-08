@@ -1,0 +1,118 @@
+<!doctype html>
+<html lang="de">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>PedigreeLab</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="toolbar">
+        <div>
+          <h1>PedigreeLab</h1>
+          <span id="filePath"></span>
+          <span id="autosaveState" class="autosave-state">Geladen</span>
+        </div>
+        <div class="actions">
+          <button id="addPersonBtn" type="button">Person</button>
+          <button id="addParentsBtn" type="button">Eltern</button>
+          <button id="addChildBtn" type="button">Kind</button>
+          <button id="deletePersonBtn" type="button" class="danger">Entfernen</button>
+          <button id="layoutBtn" type="button">Layout</button>
+          <button id="exportSvgBtn" type="button">SVG</button>
+          <button id="saveBtn" type="button" class="primary">Jetzt sichern</button>
+        </div>
+      </header>
+
+      <section class="workspace">
+        <section class="canvas-panel" aria-label="Stammbaum">
+          <svg id="canvas" viewBox="0 0 1200 760" role="img" aria-label="Pedigree canvas">
+            <g id="links"></g>
+            <g id="nodes"></g>
+          </svg>
+        </section>
+
+        <aside class="details-panel">
+          <section id="personPanel">
+          <h2>Person</h2>
+          <form id="personForm">
+            <label>
+              ID
+              <input id="individualId" name="individual_id" autocomplete="off" required />
+            </label>
+            <label>
+              Familie
+              <input id="familyId" name="family_id" autocomplete="off" />
+            </label>
+            <label>
+              Geschlecht
+              <select id="sex" name="sex">
+                <option value="0">Unbekannt</option>
+                <option value="1">Mann</option>
+                <option value="2">Frau</option>
+              </select>
+            </label>
+            <label>
+              Phaenotyp
+              <input id="phenotype" name="phenotype" autocomplete="off" />
+            </label>
+            <label>
+              Vater-ID
+              <input id="paternalId" name="paternal_id" autocomplete="off" list="personIds" />
+            </label>
+            <label>
+              Mutter-ID
+              <input id="maternalId" name="maternal_id" autocomplete="off" list="personIds" />
+            </label>
+            <datalist id="personIds"></datalist>
+            <div class="coord-row">
+              <label>
+                X
+                <input id="posX" name="x" type="number" step="1" />
+              </label>
+              <label>
+                Y
+                <input id="posY" name="y" type="number" step="1" />
+              </label>
+            </div>
+            <button type="submit" class="primary">Uebernehmen</button>
+          </form>
+          </section>
+          <section id="legacyPanel" hidden>
+            <h2>Raster</h2>
+            <label>
+              Werkzeug
+              <select id="legacyTool">
+                <option value="inspect">Auswaehlen</option>
+                <option value="empty">Leer</option>
+                <option value="male">Mann</option>
+                <option value="female">Frau</option>
+                <option value="diamond">Raute</option>
+                <option value="abort">Abort</option>
+                <option value="horizontal">Linie waagerecht</option>
+                <option value="vertical">Linie senkrecht</option>
+                <option value="junction">Kreuzung</option>
+                <option value="t_down">T nach unten</option>
+                <option value="t_up">T nach oben</option>
+                <option value="corner_up_right">Ecke oben rechts</option>
+                <option value="corner_up_left">Ecke oben links</option>
+                <option value="corner_down_right">Ecke unten rechts</option>
+                <option value="corner_down_left">Ecke unten links</option>
+              </select>
+            </label>
+            <label>
+              Notiz
+              <textarea id="legacyNote" rows="4"></textarea>
+            </label>
+            <button id="applyLegacyNoteBtn" type="button" class="primary">Notiz setzen</button>
+            <div id="legacyCellInfo" class="cell-info"></div>
+          </section>
+          <div id="status" class="status"></div>
+          <div id="errors" class="errors"></div>
+        </aside>
+      </section>
+    </main>
+    <script src="/app.js"></script>
+  </body>
+</html>

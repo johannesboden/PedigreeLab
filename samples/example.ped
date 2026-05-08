@@ -1,0 +1,9 @@
+# Example .ped file for PedigreeLab
+# PedigreeLab position FATHER 120.0 90.0
+# PedigreeLab position MOTHER 270.0 90.0
+# PedigreeLab position CHILD1 120.0 240.0
+# PedigreeLab position CHILD2 270.0 240.0
+FAM1 FATHER 0 0 1 0
+FAM1 MOTHER 0 0 2 0
+FAM1 CHILD1 FATHER MOTHER 2 affected
+FAM1 CHILD2 FATHER MOTHER 1 unaffected

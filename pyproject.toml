@@ -1,0 +1,10 @@
+[project]
+name = "pedigreelab"
+version = "0.1.0"
+description = "Pedigree editor prototype using .ped files"
+requires-python = ">=3.11"
+dependencies = []
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["."]
