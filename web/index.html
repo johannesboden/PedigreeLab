@@ -8,6 +8,16 @@
   </head>
   <body>
     <main class="app-shell">
+      <nav class="menu-strip" aria-label="PED-Menü">
+        <span>File</span>
+        <span>Edit</span>
+        <span>Input Window</span>
+        <span>Screen</span>
+        <span>Symbol Bar</span>
+        <span>Window</span>
+        <span>Phenotype</span>
+        <span>Help</span>
+      </nav>
       <header class="toolbar">
         <div>
           <h1>PedigreeLab</h1>
@@ -16,14 +26,22 @@
         </div>
         <div class="actions">
           <button id="newPedigreeBtn" type="button">Neu</button>
-          <button id="addPersonBtn" type="button">Person</button>
-          <button id="addParentsBtn" type="button">Eltern</button>
-          <button id="addPartnerBtn" type="button">Partner</button>
+          <select id="partnerSlot" aria-label="Partner-Auswahl">
+            <option value="1">1. Partner</option>
+            <option value="2">2. Partner</option>
+            <option value="3">3. Partner</option>
+            <option value="4">4. Partner</option>
+            <option value="5">5. Partner</option>
+          </select>
           <button id="addSonBtn" type="button">Sohn</button>
           <button id="addDaughterBtn" type="button">Tochter</button>
+          <button id="addUnknownBtn" type="button">Unbekannt</button>
+          <button id="addParentsBtn" type="button">Vorfahren</button>
+          <button id="exportSvgBtn" type="button">Export</button>
+          <button id="importBtn" type="button">Import</button>
+          <button id="addPersonBtn" type="button">Freie Person</button>
           <button id="deletePersonBtn" type="button" class="danger">Entfernen</button>
           <button id="layoutBtn" type="button">Layout</button>
-          <button id="exportSvgBtn" type="button">SVG</button>
           <button id="saveBtn" type="button" class="primary">Jetzt sichern</button>
         </div>
       </header>

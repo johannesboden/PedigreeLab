@@ -32,6 +32,7 @@ Open `http://127.0.0.1:8765`.
 - Load and save `.ped` files.
 - Draw parents, partners, and children.
 - Start a new default pedigree with consultand, partner, and child.
+- PED-inspired input toolbar with partner selector and direct Son/Daughter/Unknown/Ancestors actions.
 - Add a person.
 - Add parents for the selected person.
 - Add partner, son, or daughter for the selected person.

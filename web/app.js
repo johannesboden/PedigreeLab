@@ -16,6 +16,7 @@ const legacyCellInfo = document.getElementById("legacyCellInfo");
 const applyLegacyNoteBtn = document.getElementById("applyLegacyNoteBtn");
 const relativeType = document.getElementById("relativeType");
 const addRelativeBtn = document.getElementById("addRelativeBtn");
+const partnerSlot = document.getElementById("partnerSlot");
 
 let pedigree = { people: [], comments: [], errors: [] };
 let selectedId = null;
@@ -39,12 +40,13 @@ const fields = {
 document.getElementById("newPedigreeBtn").addEventListener("click", newPedigree);
 document.getElementById("addPersonBtn").addEventListener("click", addPerson);
 document.getElementById("addParentsBtn").addEventListener("click", addParents);
-document.getElementById("addPartnerBtn").addEventListener("click", addPartner);
 document.getElementById("addSonBtn").addEventListener("click", () => addChild("1"));
 document.getElementById("addDaughterBtn").addEventListener("click", () => addChild("2"));
+document.getElementById("addUnknownBtn").addEventListener("click", () => addChild("0"));
 deletePersonBtn.addEventListener("click", deleteSelectedPerson);
 document.getElementById("layoutBtn").addEventListener("click", autoLayout);
 document.getElementById("exportSvgBtn").addEventListener("click", exportSvg);
+document.getElementById("importBtn").addEventListener("click", () => setStatus("Import wird im nächsten Schritt ergänzt"));
 document.getElementById("saveBtn").addEventListener("click", () => savePedigree({ manual: true }));
 form.addEventListener("submit", applyForm);
 form.addEventListener("change", applyFormChange);
@@ -179,12 +181,8 @@ function addPartner() {
     setStatus("Erst eine Person auswählen");
     return;
   }
-  const partnerId = nextId("P");
-  const partnerSex = person.sex === "1" ? "2" : person.sex === "2" ? "1" : "0";
-  const partner = makePerson(partnerId, person.family_id, partnerSex, (person.x || 120) + 170, person.y || 120);
-  pedigree.people.push(partner);
-  ensurePartnerLink(person.individual_id, partnerId);
-  selectedId = partnerId;
+  const partner = ensurePartnerForSlot(person, selectedPartnerSlot());
+  selectedId = partner.individual_id;
   applyAutoLayoutAfterEdit("Partner angelegt");
 }
 
@@ -244,7 +242,7 @@ function addChild(sex = "0") {
   }
   const childId = nextId(sex === "1" ? "S" : sex === "2" ? "T" : "K");
   const child = makePerson(childId, parent.family_id, sex, parent.x, parent.y + 150);
-  const partner = selectedPartnerFor(parent);
+  const partner = ensurePartnerForSlot(parent, selectedPartnerSlot());
   if (parent.sex === "1") {
     child.paternal_id = parent.individual_id;
     if (partner) child.maternal_id = partner.individual_id;
@@ -304,10 +302,27 @@ function ensurePartnerLink(leftId, rightId) {
   if (!exists) pedigree.partner_links.push([leftId, rightId]);
 }
 
-function selectedPartnerFor(person) {
-  const explicitLink = (pedigree.partner_links || []).find(
+function selectedPartnerSlot() {
+  return Number(partnerSlot?.value || 1);
+}
+
+function ensurePartnerForSlot(person, slot) {
+  const existing = selectedPartnerFor(person, slot);
+  if (existing) return existing;
+  const partnerId = nextId(`P${slot}`);
+  const partnerSex = person.sex === "1" ? "2" : person.sex === "2" ? "1" : "0";
+  const direction = slot % 2 === 0 ? -1 : 1;
+  const partner = makePerson(partnerId, person.family_id, partnerSex, (person.x || 120) + direction * 170, person.y || 120);
+  pedigree.people.push(partner);
+  ensurePartnerLink(person.individual_id, partnerId);
+  return partner;
+}
+
+function selectedPartnerFor(person, slot = 1) {
+  const links = (pedigree.partner_links || []).filter(
     ([left, right]) => left === person.individual_id || right === person.individual_id
   );
+  const explicitLink = links[slot - 1] || null;
   if (explicitLink) {
     const partnerId = explicitLink[0] === person.individual_id ? explicitLink[1] : explicitLink[0];
     const partner = findPerson(partnerId);
@@ -806,9 +821,11 @@ function isLegacyMode() {
 
 function setToolbarForLegacy(isLegacy) {
   document.getElementById("addParentsBtn").disabled = isLegacy;
-  document.getElementById("addPartnerBtn").disabled = isLegacy;
   document.getElementById("addSonBtn").disabled = isLegacy;
   document.getElementById("addDaughterBtn").disabled = isLegacy;
+  document.getElementById("addUnknownBtn").disabled = isLegacy;
+  document.getElementById("importBtn").disabled = isLegacy;
+  partnerSlot.disabled = isLegacy;
   document.getElementById("layoutBtn").disabled = isLegacy;
   deletePersonBtn.textContent = isLegacy ? "Zelle leeren" : "Entfernen";
 }
