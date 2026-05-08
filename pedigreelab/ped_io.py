@@ -6,6 +6,7 @@ from .models import Pedigree, Person
 
 
 POSITION_PREFIX = "# PedigreeLab position "
+PARTNER_PREFIX = "# PedigreeLab partner "
 
 
 def load_ped(path: str | Path) -> Pedigree:
@@ -28,6 +29,12 @@ def load_ped(path: str | Path) -> Pedigree:
                         positions[parts[0]] = (float(parts[1]), float(parts[2]))
                     except ValueError:
                         pedigree.comments.append(raw_line)
+                else:
+                    pedigree.comments.append(raw_line)
+            elif line.startswith(PARTNER_PREFIX):
+                parts = line[len(PARTNER_PREFIX) :].split()
+                if len(parts) == 2:
+                    pedigree.partner_links.append((parts[0], parts[1]))
                 else:
                     pedigree.comments.append(raw_line)
             else:
@@ -65,8 +72,11 @@ def save_ped(pedigree: Pedigree, path: str | Path) -> None:
 
     lines: list[str] = []
     for comment in pedigree.comments:
-        if not comment.startswith(POSITION_PREFIX):
+        if not comment.startswith(POSITION_PREFIX) and not comment.startswith(PARTNER_PREFIX):
             lines.append(comment if comment.startswith("#") else f"# {comment}")
+
+    for left_id, right_id in pedigree.partner_links:
+        lines.append(f"{PARTNER_PREFIX}{left_id} {right_id}")
 
     for person in pedigree.people.values():
         if person.x is not None and person.y is not None:

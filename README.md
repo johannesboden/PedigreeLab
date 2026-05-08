@@ -33,7 +33,8 @@ Open `http://127.0.0.1:8765`.
 - Draw parents, partners, and children.
 - Add a person.
 - Add parents for the selected person.
-- Add a child for the selected person.
+- Add partner, son, or daughter for the selected person.
+- Keep explicit partner links as `.ped` comments for couples without children.
 - Remove the selected person and clear broken parent links.
 - Edit ID, sex, phenotype, parents, and canvas position.
 - Auto-save changes after edits, drag-and-drop, layout updates, and relation changes.

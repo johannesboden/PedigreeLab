@@ -59,6 +59,7 @@ class Person:
 class Pedigree:
     people: dict[str, Person] = field(default_factory=dict)
     comments: list[str] = field(default_factory=list)
+    partner_links: list[tuple[str, str]] = field(default_factory=list)
     source_path: str | None = None
 
     def add_person(self, person: Person) -> None:
@@ -78,12 +79,16 @@ class Pedigree:
                     errors.append(
                         f"{person.individual_id}: {label} references missing person {parent_id}"
                     )
+        for left_id, right_id in self.partner_links:
+            if left_id not in self.people or right_id not in self.people:
+                errors.append(f"partner link references missing person: {left_id} {right_id}")
         return errors
 
     def to_dict(self) -> dict:
         return {
             "people": [person.to_dict() for person in self.people.values()],
             "comments": list(self.comments),
+            "partner_links": [list(link) for link in self.partner_links],
             "source_path": self.source_path,
             "errors": self.validate(),
         }
@@ -92,6 +97,11 @@ class Pedigree:
     def from_dict(cls, data: dict) -> "Pedigree":
         pedigree = cls(
             comments=[str(line) for line in data.get("comments", [])],
+            partner_links=[
+                (str(link[0]), str(link[1]))
+                for link in data.get("partner_links", [])
+                if isinstance(link, list | tuple) and len(link) == 2
+            ],
             source_path=data.get("source_path"),
         )
         for raw_person in data.get("people", []):

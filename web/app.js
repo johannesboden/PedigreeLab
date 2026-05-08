@@ -36,7 +36,9 @@ const fields = {
 
 document.getElementById("addPersonBtn").addEventListener("click", addPerson);
 document.getElementById("addParentsBtn").addEventListener("click", addParents);
-document.getElementById("addChildBtn").addEventListener("click", addChild);
+document.getElementById("addPartnerBtn").addEventListener("click", addPartner);
+document.getElementById("addSonBtn").addEventListener("click", () => addChild("1"));
+document.getElementById("addDaughterBtn").addEventListener("click", () => addChild("2"));
 deletePersonBtn.addEventListener("click", deleteSelectedPerson);
 document.getElementById("layoutBtn").addEventListener("click", autoLayout);
 document.getElementById("exportSvgBtn").addEventListener("click", exportSvg);
@@ -140,35 +142,49 @@ function addParents() {
   }
   child.paternal_id = fatherId;
   child.maternal_id = motherId;
+  ensurePartnerLink(fatherId, motherId);
   selectedId = child.individual_id;
-  normalizeStructuredSpacing();
-  render();
-  setStatus("Eltern angelegt");
-  markDirty("Eltern angelegt");
+  applyAutoLayoutAfterEdit("Eltern angelegt");
 }
 
-function addChild() {
+function addPartner() {
+  if (isLegacyMode()) return;
+  const person = selectedPerson();
+  if (!person) {
+    setStatus("Erst eine Person auswählen");
+    return;
+  }
+  const partnerId = nextId("P");
+  const partnerSex = person.sex === "1" ? "2" : person.sex === "2" ? "1" : "0";
+  const partner = makePerson(partnerId, person.family_id, partnerSex, (person.x || 120) + 170, person.y || 120);
+  pedigree.people.push(partner);
+  ensurePartnerLink(person.individual_id, partnerId);
+  selectedId = partnerId;
+  applyAutoLayoutAfterEdit("Partner angelegt");
+}
+
+function addChild(sex = "0") {
   if (isLegacyMode()) return;
   const parent = selectedPerson();
   if (!parent) {
     setStatus("Erst eine Person auswählen");
     return;
   }
-  const childId = nextId("K");
-  const child = makePerson(childId, parent.family_id, "0", parent.x, parent.y + 150);
+  const childId = nextId(sex === "1" ? "S" : sex === "2" ? "T" : "K");
+  const child = makePerson(childId, parent.family_id, sex, parent.x, parent.y + 150);
+  const partner = selectedPartnerFor(parent);
   if (parent.sex === "1") {
     child.paternal_id = parent.individual_id;
+    if (partner) child.maternal_id = partner.individual_id;
   } else if (parent.sex === "2") {
     child.maternal_id = parent.individual_id;
+    if (partner) child.paternal_id = partner.individual_id;
   } else {
     child.paternal_id = parent.individual_id;
   }
   pedigree.people.push(child);
   selectedId = childId;
-  normalizeStructuredSpacing();
-  render();
-  setStatus("Kind angelegt");
-  markDirty("Kind angelegt");
+  applyAutoLayoutAfterEdit(sex === "1" ? "Sohn angelegt" : sex === "2" ? "Tochter angelegt" : "Kind angelegt");
 }
 
 function deleteSelectedPerson() {
@@ -181,6 +197,9 @@ function deleteSelectedPerson() {
   const confirmed = window.confirm(`${person.individual_id} wirklich aus dem Stammbaum entfernen?`);
   if (!confirmed) return;
   pedigree.people = pedigree.people.filter((item) => item.individual_id !== person.individual_id);
+  pedigree.partner_links = (pedigree.partner_links || []).filter(
+    ([left, right]) => left !== person.individual_id && right !== person.individual_id
+  );
   for (const other of pedigree.people) {
     if (other.paternal_id === person.individual_id) other.paternal_id = "0";
     if (other.maternal_id === person.individual_id) other.maternal_id = "0";
@@ -203,6 +222,44 @@ function makePerson(id, familyId, sex, x, y) {
     y,
     extra_columns: [],
   };
+}
+
+function ensurePartnerLink(leftId, rightId) {
+  if (!pedigree.partner_links) pedigree.partner_links = [];
+  const exists = pedigree.partner_links.some(
+    ([left, right]) => (left === leftId && right === rightId) || (left === rightId && right === leftId)
+  );
+  if (!exists) pedigree.partner_links.push([leftId, rightId]);
+}
+
+function selectedPartnerFor(person) {
+  const explicitLink = (pedigree.partner_links || []).find(
+    ([left, right]) => left === person.individual_id || right === person.individual_id
+  );
+  if (explicitLink) {
+    const partnerId = explicitLink[0] === person.individual_id ? explicitLink[1] : explicitLink[0];
+    const partner = findPerson(partnerId);
+    if (partner) return partner;
+  }
+  const child = pedigree.people.find(
+    (candidate) => candidate.paternal_id === person.individual_id || candidate.maternal_id === person.individual_id
+  );
+  if (!child) return null;
+  const partnerId = child.paternal_id === person.individual_id ? child.maternal_id : child.paternal_id;
+  return partnerId && partnerId !== "0" ? findPerson(partnerId) : null;
+}
+
+async function applyAutoLayoutAfterEdit(message) {
+  normalizeStructuredSpacing();
+  try {
+    const response = await fetch("/api/layout");
+    pedigree = await response.json();
+  } catch {
+    normalizeStructuredSpacing();
+  }
+  render();
+  setStatus(message);
+  markDirty(message);
 }
 
 function normalizeStructuredSpacing() {
@@ -304,11 +361,23 @@ function render() {
     }
   }
 
+  const drawnPartnerLinks = new Set();
+  for (const [leftId, rightId] of pedigree.partner_links || []) {
+    const left = people.get(leftId);
+    const right = people.get(rightId);
+    if (left && right) {
+      drawPartnerLine(left, right);
+      drawnPartnerLinks.add(partnerKey(leftId, rightId));
+    }
+  }
+
   for (const child of pedigree.people) {
     const father = people.get(child.paternal_id);
     const mother = people.get(child.maternal_id);
     if (father && mother) {
-      drawPartnerLine(father, mother);
+      if (!drawnPartnerLinks.has(partnerKey(father.individual_id, mother.individual_id))) {
+        drawPartnerLine(father, mother);
+      }
       drawChildLine(father, mother, child);
     } else {
       if (father) drawSingleParentLine(father, child);
@@ -378,6 +447,10 @@ function renderLegacy() {
 function drawPartnerLine(left, right) {
   const y = Math.min(left.y, right.y);
   appendPath(`M ${left.x} ${y} L ${right.x} ${y}`);
+}
+
+function partnerKey(leftId, rightId) {
+  return [leftId, rightId].sort().join("::");
 }
 
 function drawChildLine(parentA, parentB, child) {
@@ -460,11 +533,22 @@ function moveDrag(event) {
   }
   linksLayer.replaceChildren();
   const people = new Map(pedigree.people.map((item) => [item.individual_id, item]));
+  const drawnPartnerLinks = new Set();
+  for (const [leftId, rightId] of pedigree.partner_links || []) {
+    const left = people.get(leftId);
+    const right = people.get(rightId);
+    if (left && right) {
+      drawPartnerLine(left, right);
+      drawnPartnerLinks.add(partnerKey(leftId, rightId));
+    }
+  }
   for (const child of pedigree.people) {
     const father = people.get(child.paternal_id);
     const mother = people.get(child.maternal_id);
     if (father && mother) {
-      drawPartnerLine(father, mother);
+      if (!drawnPartnerLinks.has(partnerKey(father.individual_id, mother.individual_id))) {
+        drawPartnerLine(father, mother);
+      }
       drawChildLine(father, mother, child);
     } else {
       if (father) drawSingleParentLine(father, child);
@@ -628,7 +712,9 @@ function isLegacyMode() {
 
 function setToolbarForLegacy(isLegacy) {
   document.getElementById("addParentsBtn").disabled = isLegacy;
-  document.getElementById("addChildBtn").disabled = isLegacy;
+  document.getElementById("addPartnerBtn").disabled = isLegacy;
+  document.getElementById("addSonBtn").disabled = isLegacy;
+  document.getElementById("addDaughterBtn").disabled = isLegacy;
   document.getElementById("layoutBtn").disabled = isLegacy;
   deletePersonBtn.textContent = isLegacy ? "Zelle leeren" : "Entfernen";
 }

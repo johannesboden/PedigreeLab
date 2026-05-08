@@ -15,6 +15,7 @@ class PedIoTests(unittest.TestCase):
                     [
                         "# comment",
                         "# PedigreeLab position C1 10 20",
+                        "# PedigreeLab partner F1 M1",
                         "FAM1 F1 0 0 1 0",
                         "FAM1 M1 0 0 2 0",
                         "FAM1 C1 F1 M1 2 affected marker1 marker2",
@@ -29,6 +30,7 @@ class PedIoTests(unittest.TestCase):
             self.assertEqual(len(pedigree.people), 3)
             self.assertEqual(pedigree.people["C1"].x, 10)
             self.assertEqual(pedigree.people["C1"].extra_columns, ["marker1", "marker2"])
+            self.assertEqual(pedigree.partner_links, [("F1", "M1")])
             self.assertEqual(pedigree.validate(), [])
 
             target = tmp_path / "saved.ped"
