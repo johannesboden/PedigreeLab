@@ -38,8 +38,8 @@
           <h2>Person</h2>
           <form id="personForm">
             <label>
-              ID
-              <input id="individualId" name="individual_id" autocomplete="off" required />
+              Interne ID (optional)
+              <input id="individualId" name="individual_id" autocomplete="off" placeholder="wird automatisch vergeben" />
             </label>
             <label>
               Familie
@@ -54,7 +54,7 @@
               </select>
             </label>
             <label>
-              Phaenotyp
+              Phänotyp
               <input id="phenotype" name="phenotype" autocomplete="off" />
             </label>
             <label>
@@ -76,7 +76,7 @@
                 <input id="posY" name="y" type="number" step="1" />
               </label>
             </div>
-            <button type="submit" class="primary">Uebernehmen</button>
+            <button type="submit" class="primary">Übernehmen</button>
           </form>
           </section>
           <section id="legacyPanel" hidden>
@@ -84,7 +84,7 @@
             <label>
               Werkzeug
               <select id="legacyTool">
-                <option value="inspect">Auswaehlen</option>
+                <option value="inspect">Auswählen</option>
                 <option value="empty">Leer</option>
                 <option value="male">Mann</option>
                 <option value="female">Frau</option>

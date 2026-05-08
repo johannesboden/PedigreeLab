@@ -19,6 +19,7 @@ let pedigree = { people: [], comments: [], errors: [] };
 let selectedId = null;
 let selectedCell = null;
 let drag = null;
+let draggedNode = null;
 let saveTimer = null;
 let dirty = false;
 
@@ -54,7 +55,7 @@ loadPedigree();
 async function loadPedigree() {
   const response = await fetch("/api/pedigree");
   pedigree = await response.json();
-  selectedId = pedigree.people[0]?.individual_id ?? null;
+  selectedId = pedigree.people?.[0]?.individual_id ?? null;
   render();
   setStatus("Geladen");
   setAutosaveState("saved", "Automatisch gespeichert");
@@ -94,12 +95,12 @@ async function autoLayout() {
   pedigree = await response.json();
   render();
   setStatus("Layout aktualisiert");
-  markDirty("Layout geaendert");
+  markDirty("Layout geändert");
 }
 
 function addPerson() {
   if (isLegacyMode()) {
-    setStatus("Im Rastermodus bitte ein Symbol-Werkzeug waehlen");
+    setStatus("Im Rastermodus bitte ein Symbol-Werkzeug wählen");
     return;
   }
   const familyId = selectedPerson()?.family_id || "FAM1";
@@ -116,6 +117,7 @@ function addPerson() {
     extra_columns: [],
   });
   selectedId = newId;
+  normalizeStructuredSpacing();
   render();
   setStatus("Person angelegt");
   markDirty("Neue Person");
@@ -125,7 +127,7 @@ function addParents() {
   if (isLegacyMode()) return;
   const child = selectedPerson();
   if (!child) {
-    setStatus("Erst eine Person auswaehlen");
+    setStatus("Erst eine Person auswählen");
     return;
   }
   const fatherId = child.paternal_id !== "0" ? child.paternal_id : nextId("V");
@@ -139,6 +141,7 @@ function addParents() {
   child.paternal_id = fatherId;
   child.maternal_id = motherId;
   selectedId = child.individual_id;
+  normalizeStructuredSpacing();
   render();
   setStatus("Eltern angelegt");
   markDirty("Eltern angelegt");
@@ -148,7 +151,7 @@ function addChild() {
   if (isLegacyMode()) return;
   const parent = selectedPerson();
   if (!parent) {
-    setStatus("Erst eine Person auswaehlen");
+    setStatus("Erst eine Person auswählen");
     return;
   }
   const childId = nextId("K");
@@ -162,6 +165,7 @@ function addChild() {
   }
   pedigree.people.push(child);
   selectedId = childId;
+  normalizeStructuredSpacing();
   render();
   setStatus("Kind angelegt");
   markDirty("Kind angelegt");
@@ -201,16 +205,29 @@ function makePerson(id, familyId, sex, x, y) {
   };
 }
 
+function normalizeStructuredSpacing() {
+  const rows = new Map();
+  for (const person of pedigree.people) {
+    const rowKey = Math.round((person.y || 120) / 25) * 25;
+    if (!rows.has(rowKey)) rows.set(rowKey, []);
+    rows.get(rowKey).push(person);
+  }
+  for (const people of rows.values()) {
+    people.sort((left, right) => (left.x || 0) - (right.x || 0));
+    for (let index = 1; index < people.length; index += 1) {
+      const previous = people[index - 1];
+      const current = people[index];
+      current.x = Math.max(current.x || 120, (previous.x || 120) + 135);
+    }
+  }
+}
+
 function applyForm(event) {
   event.preventDefault();
   const person = selectedPerson();
   if (!person) return;
   const oldId = person.individual_id;
-  const newId = fields.individual_id.value.trim();
-  if (!newId) {
-    setStatus("ID fehlt");
-    return;
-  }
+  const newId = fields.individual_id.value.trim() || nextId("P");
   if (newId !== oldId && findPerson(newId)) {
     setStatus("ID existiert bereits");
     return;
@@ -231,15 +248,15 @@ function applyForm(event) {
   }
   selectedId = newId;
   render();
-  setStatus("Aenderungen uebernommen");
-  markDirty("Person geaendert");
+  setStatus("Änderungen übernommen");
+  markDirty("Person geändert");
 }
 
 function applyFormChange() {
   if (applyFormValues()) {
     render();
-    setStatus("Aenderung uebernommen");
-    markDirty("Formular geaendert");
+    setStatus("Änderung übernommen");
+    markDirty("Formular geändert");
   }
 }
 
@@ -247,8 +264,8 @@ function applyFormValues() {
   const person = selectedPerson();
   if (!person) return false;
   const oldId = person.individual_id;
-  const newId = fields.individual_id.value.trim();
-  if (!newId || (newId !== oldId && findPerson(newId))) return false;
+  const newId = fields.individual_id.value.trim() || oldId || nextId("P");
+  if (newId !== oldId && findPerson(newId)) return false;
 
   person.individual_id = newId;
   person.family_id = fields.family_id.value.trim() || "FAM1";
@@ -420,15 +437,16 @@ function drawPerson(person) {
 }
 
 function startDrag(event) {
+  event.preventDefault();
   const id = event.currentTarget.dataset.id;
   const person = findPerson(id);
   if (!person) return;
   selectedId = id;
   const point = svgPoint(event);
   drag = { id, dx: point.x - person.x, dy: point.y - person.y };
-  canvas.setPointerCapture(event.pointerId);
-  canvas.addEventListener("pointermove", moveDrag);
-  canvas.addEventListener("pointerup", endDrag, { once: true });
+  draggedNode = event.currentTarget;
+  window.addEventListener("pointermove", moveDrag);
+  window.addEventListener("pointerup", endDrag, { once: true });
 }
 
 function moveDrag(event) {
@@ -437,14 +455,32 @@ function moveDrag(event) {
   const point = svgPoint(event);
   person.x = Math.round(point.x - drag.dx);
   person.y = Math.round(point.y - drag.dy);
-  render();
+  if (draggedNode) {
+    draggedNode.setAttribute("transform", `translate(${person.x}, ${person.y})`);
+  }
+  linksLayer.replaceChildren();
+  const people = new Map(pedigree.people.map((item) => [item.individual_id, item]));
+  for (const child of pedigree.people) {
+    const father = people.get(child.paternal_id);
+    const mother = people.get(child.maternal_id);
+    if (father && mother) {
+      drawPartnerLine(father, mother);
+      drawChildLine(father, mother, child);
+    } else {
+      if (father) drawSingleParentLine(father, child);
+      if (mother) drawSingleParentLine(mother, child);
+    }
+  }
+  fields.x.value = Math.round(person.x);
+  fields.y.value = Math.round(person.y);
 }
 
 function endDrag(event) {
-  canvas.releasePointerCapture(event.pointerId);
-  canvas.removeEventListener("pointermove", moveDrag);
+  window.removeEventListener("pointermove", moveDrag);
   drag = null;
-  markDirty("Position geaendert");
+  draggedNode = null;
+  render();
+  markDirty("Position geändert");
 }
 
 function svgPoint(event) {
@@ -530,7 +566,7 @@ function setStatus(message) {
 
 function markDirty() {
   dirty = true;
-  setAutosaveState("dirty", "Ungesicherte Aenderung");
+  setAutosaveState("dirty", "Ungesicherte Änderung");
   if (saveTimer) clearTimeout(saveTimer);
   saveTimer = setTimeout(() => savePedigree(), 1200);
 }
@@ -617,7 +653,7 @@ function onLegacyCellClick(event) {
 
 function updateLegacyPanel() {
   if (selectedCell == null) {
-    legacyCellInfo.textContent = "Keine Zelle ausgewaehlt";
+    legacyCellInfo.textContent = "Keine Zelle ausgewählt";
     legacyNote.value = "";
     return;
   }
